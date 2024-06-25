@@ -39,20 +39,109 @@ bool checkCollisions(
                 hit_object = curr_obj;
             }
         }
-        else
-        {
-            // std::cout << "No interesection \n";
-        }
+        // else
+        // {
+        //     // std::cout << "No interesection \n";
+        // }
     }
-    if (hit)
-    {
-        // std::cout << "Finally the hit object is " << *hit_object << std::endl;
-    }
+    // if (hit)
+    // {
+    //     // std::cout << "Finally the hit object is " << *hit_object << std::endl;
+    // }
     return hit;
 }
 
-// double castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
+std::vector<Ray> sampleLightPoints(Ray const &rayToLight, Sphere const &light)
+{
+    // find an orthnormal basis of the disk
+    Vec3 v1 = cross_product(rayToLight.dir, Vec3(0, 0, 1));
+    v1 = v1.normalize();
+    Vec3 v2 = cross_product(rayToLight.dir, v1);
+
+    // Could be random sampling but naaahh
+    // Could be the n_roots of unit circle but naaahh
+    // Lets just take four corners and the true center
+    std::vector<Ray> shadowRays;
+    shadowRays.push_back(rayToLight);
+
+    Vec3 dir;
+    dir = light.pos + light.s * v1 - rayToLight.pos;
+    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    dir = light.pos - light.s * v1 - rayToLight.pos;
+    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    dir = light.pos + light.s * v2 - rayToLight.pos;
+    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    dir = light.pos - light.s * v2 - rayToLight.pos;
+    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+
+    return shadowRays;
+}
+
+Vec3 traceShadowRay(Ray const &rayToLight,
+                    Ray const &normal_ray,
+                    Vec3 const &color_surface,
+                    std::vector<Object *> all_objects,
+                    Sphere const &light)
+{
+
+    double t_hit = INFINITY;
+    Object *hit_obj = nullptr;
+    bool blocked = checkCollisions(rayToLight, all_objects, t_hit, hit_obj);
+
+    if (blocked)
+    {
+        if (hit_obj->isGlass)
+        {
+            float facing_ratio = rayToLight.dir.normalize().dot(normal_ray.dir);
+            return facing_ratio * light.color * color_surface * (1 - hit_obj->opacity);
+
+            // shoot another reflected ray i guess;
+            // Vec3 hitPoint = rayToLight.pos + t_hit * rayToLight.dir;
+            // Vec3 normal_dir = hit_obj->computeNormalDir(hitPoint);
+            // hitPoint = hitPoint + 1e-5 * normal_dir; // To avoid self_intersection
+            // Vec3 color_glass = hit_obj->getColorAt(hitPoint);
+            // Vec3 color_surface = color_glass * rayToLight.color;
+            // Ray normal_ray = Ray(hitPoint, normal_dir, color_surface, rayToLight.depth);
+
+            // Ray reflected_ray = computeReflectedRay(normal_ray, rayToLight, hit_obj->opacity);
+            // Vec3 color_reflected = trace(reflected_ray, all_objects, light);
+            // return color_reflected;
+        }
+        else
+        {
+            // something in the way, return black.
+            // std::cout << "The light is not visible.\n";
+            return Vec3(0);
+        }
+    }
+    else
+    {
+        // the light is visible
+        float facing_ratio = rayToLight.dir.normalize().dot(normal_ray.dir);
+        // std::cout << "The light is visible.\n";
+        // return facing_ratio;
+        return facing_ratio * light.color * color_surface;
+    }
+}
+
 Vec3 castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
+{
+    // std::cout << "\nChecking for light visibility\n";
+
+    Ray rayToLight = Ray(normal_ray.pos, light.pos - normal_ray.pos, normal_ray.color, normal_ray.depth);
+
+    std::vector<Ray> shadowRays = sampleLightPoints(rayToLight, light);
+    Vec3 res_color = Vec3(0);
+    for (auto r = shadowRays.begin(); r != shadowRays.end(); r++)
+    {
+        res_color = res_color + traceShadowRay(*r, normal_ray, color_surface, all_objects, light);
+    }
+    res_color = res_color / shadowRays.size();
+    return res_color;
+}
+
+// double castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
+Vec3 castShadowRay__(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
 {
     // std::cout << "\nChecking for light visibility\n";
 
@@ -224,7 +313,7 @@ int main()
     Camera camera = Camera(Vec3(0, 0, 1), Vec3(-1, 0, 1.001), PIXEL_SIZE, WIDTH, HEIGHT);
     printf(camera);
 
-    Sphere light = Sphere(Vec3(-2, -4, 3), WHITE, 3);
+    Sphere light = Sphere(Vec3(-2, -4, 3), WHITE, 0.1);
 
     std::vector<Object *> all_objects;
     all_objects.push_back(new CheckBoard());
