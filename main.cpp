@@ -1,7 +1,5 @@
 #include "main.h"
 
-int MAX_DEPTH = 4;
-
 Vec3 WHITE = Vec3(1);
 Vec3 BLACK = Vec3(0);
 Vec3 RED = Vec3(1, 0, 0);
@@ -11,8 +9,8 @@ Vec3 GREY = 0.5 * WHITE + 0.5 * BLACK;
 Vec3 sky = GREY;
 
 bool checkCollisions(
-    Ray r,
-    std::vector<Object *> all_objects,
+    Ray const &r,
+    std::vector<Object *> const &all_objects,
     double &t_hit,
     Object *&hit_object)
 {
@@ -56,7 +54,9 @@ double rand01()
     return ((double)rand() / (RAND_MAX));
 }
 
-std::vector<Ray> sampleLightPoints(Ray const &rayToLight, Sphere const &light, int n_pts)
+std::vector<Ray> sampleLightPoints(Ray const &rayToLight,
+                                   Sphere const &light,
+                                   int n_pts)
 {
     // find an orthnormal basis of the disk
     // If rayToLight.dir ==  Vec3(0, 0, 1) big problem, too lazy to fix
@@ -97,7 +97,7 @@ std::vector<Ray> sampleLightPoints(Ray const &rayToLight, Sphere const &light, i
 Vec3 traceShadowRay(Ray const &rayToLight,
                     Ray const &normal_ray,
                     Vec3 const &color_surface,
-                    std::vector<Object *> all_objects,
+                    std::vector<Object *> const &all_objects,
                     Sphere const &light)
 {
 
@@ -141,7 +141,10 @@ Vec3 traceShadowRay(Ray const &rayToLight,
     }
 }
 
-Vec3 castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
+Vec3 castShadowRay(Ray const &normal_ray,
+                   Vec3 const &color_surface,
+                   std::vector<Object *> const &all_objects,
+                   Sphere const &light)
 {
 
     Ray rayToLight = Ray(normal_ray.pos, light.pos - normal_ray.pos, normal_ray.color, normal_ray.depth);
@@ -157,10 +160,13 @@ Vec3 castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector
     return res_color;
 }
 
-Vec3 trace(Ray r, std::vector<Object *> all_objects, Sphere light)
+Vec3 trace(Ray const &r,
+           std::vector<Object *> const &all_objects,
+           Sphere const &light,
+           Options const &option)
 {
     // std::cout << "Tracing at depth " << r.depth << " for " << r << std::endl;
-    if (r.depth >= MAX_DEPTH)
+    if (r.depth >= option.MAX_DEPTH)
     {
         // return shootToLight(r, light, all_objects, n_objects);
         return r.color;
@@ -184,7 +190,7 @@ Vec3 trace(Ray r, std::vector<Object *> all_objects, Sphere light)
     {
 
         Ray reflected_ray = computeReflectedRay(normal_ray, r, hit_object->opacity);
-        Vec3 color_reflected = trace(reflected_ray, all_objects, light);
+        Vec3 color_reflected = trace(reflected_ray, all_objects, light, option);
 
         // if (hit_object->opacity < 1)
         // {
@@ -200,16 +206,17 @@ Vec3 trace(Ray r, std::vector<Object *> all_objects, Sphere light)
     }
 }
 
-Vec3 compute_pixel_color(
-    Ray primaryRay,
-    std::vector<Object *> all_objects,
-    Sphere light)
+Vec3 compute_pixel_color(Ray const &primaryRay,
+                         std::vector<Object *> const &all_objects,
+                         Sphere const &light,
+                         Options const &option)
 {
     Vec3 pixel_color;
 
     pixel_color = trace(primaryRay,
                         all_objects,
-                        light);
+                        light,
+                        option);
 
     return pixel_color;
 }
@@ -260,17 +267,20 @@ void write_image(const std::vector<std::vector<Vec3>> &image,
     ofs.close();
 };
 
-int WIDTH = 2048;
-int HEIGHT = 2048;
-double PIXEL_SIZE = 0.001;
-
 int main()
 {
-    std::vector<std::vector<Vec3>> image(HEIGHT, std::vector<Vec3>(WIDTH));
+
+    Options option;
+    option.HEIGHT = 2048;
+    option.WIDTH = 2048;
+    option.PIXEL_SIZE = 0.001;
+    option.MAX_DEPTH = 4;
+
+    std::vector<std::vector<Vec3>> image(option.HEIGHT, std::vector<Vec3>(option.WIDTH));
 
     // Declare the objects in the scene
 
-    Camera camera = Camera(Vec3(0, 0, 1), Vec3(-1, 0, 1.001), PIXEL_SIZE, WIDTH, HEIGHT);
+    Camera camera = Camera(Vec3(0, 0, 1), Vec3(-1, 0, 1.001), option.PIXEL_SIZE, option.WIDTH, option.HEIGHT);
     printf(camera);
 
     Sphere light = Sphere(Vec3(-2, -4, 3), WHITE, 0.1);
@@ -289,9 +299,9 @@ int main()
     all_objects.push_back(glassSphere2);
 
     // fill the pixel values
-    for (int i = 0; i < HEIGHT; i++)
+    for (int i = 0; i < option.HEIGHT; i++)
     {
-        for (int j = 0; j < WIDTH; j++)
+        for (int j = 0; j < option.WIDTH; j++)
         {
             // anti-alliasing :
             std::vector<Ray *> rays = camera.shoot_rays(i, j);
@@ -300,7 +310,7 @@ int main()
             for (int k = 0; k < alliasing_factor; k++)
             {
                 Ray *r = rays.at(k);
-                color_pixel = color_pixel + compute_pixel_color(*r, all_objects, light);
+                color_pixel = color_pixel + compute_pixel_color(*r, all_objects, light, option);
                 delete r;
             }
             image[i][j] = color_pixel / alliasing_factor;
@@ -314,8 +324,8 @@ int main()
     }
     all_objects.clear();
 
-    // print_image(image, WIDTH, HEIGHT);
-    write_image(image, WIDTH, HEIGHT);
+    // print_image(image, option.WIDTH, option.HEIGHT);
+    write_image(image, option.WIDTH, option.HEIGHT);
 
     return 0;
 };
