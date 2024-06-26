@@ -2,6 +2,10 @@
 #include "vector.h"
 #endif
 
+#ifndef COLORS
+#include "colors.h"
+#endif
+
 #ifndef OBJECTS
 #include "objects.h"
 #endif
@@ -9,6 +13,8 @@
 #ifndef CAMERA
 #include "camera.h"
 #endif
+
+#include "progress_bar.h"
 
 #include <vector>
 #include <ctime>
@@ -19,6 +25,7 @@ struct Options
     int MAX_DEPTH;
     int WIDTH;
     int HEIGHT;
+    int n_ray_shadow;
     double PIXEL_SIZE;
     bool random_alliasing;
     int n_ray_per_pixel;
@@ -38,7 +45,8 @@ Vec3 traceShadowRay(Ray const &rayToLight,
                     Ray const &normal_ray,
                     Vec3 const &color_surface,
                     std::vector<Object *> const &all_objects,
-                    Sphere const &light);
+                    Sphere const &light,
+                    Options const &option);
 
 Vec3 castShadowRay(Ray const &normal_ray,
                    Vec3 const &color_surface,

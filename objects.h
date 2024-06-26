@@ -1,7 +1,13 @@
 #ifndef OBJECTS
 #define OBJECTS
 
+#ifndef COLORS
+#include "colors.h"
+#endif
+
+#ifndef VEC
 #include "vector.h"
+#endif
 
 class Ray
 {
@@ -28,6 +34,7 @@ public:
     Vec3 pos;
     bool isGlass = false;
     double opacity = 1;
+    double roughness = 1;
     double s; // scale
     // Mat4 rotMat ; // rotation matrix world to local;
 

@@ -8,7 +8,7 @@ CXXFLAGS = -Wall -g
 TARGET = myprogram
 
 # Source files
-SRCS = main.cpp camera.cpp objects.cpp  vector.cpp
+SRCS = main.cpp progress_bar.cpp camera.cpp objects.cpp colors.cpp vector.cpp
 # SRCS = *.cpp
 
 # Object files

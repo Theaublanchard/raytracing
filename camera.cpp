@@ -40,12 +40,6 @@ void Camera::compute_corners()
     top_left_corner = pos_center - width_vector - height_vector;
     right_dir = first_basis_vec;
     down_dir = second_basis_vec;
-
-    printf("Computed camera corners. Found top left corner at ");
-    printf(top_left_corner);
-    printf("\n and camera center at ");
-    printf(pos_center);
-    printf("\n");
 };
 
 Camera::Camera(Vec3 pos, Vec3 focal, float px_size, int width_, int height_)

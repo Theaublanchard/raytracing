@@ -1,12 +1,5 @@
 #include "main.h"
 
-Vec3 WHITE = Vec3(1);
-Vec3 BLACK = Vec3(0);
-Vec3 RED = Vec3(1, 0, 0);
-Vec3 GREEN = Vec3(0, 1, 0);
-Vec3 BLUE = Vec3(0, 0, 1);
-Vec3 GREY = 0.5 * WHITE + 0.5 * BLACK;
-Vec3 sky = GREY;
 
 bool checkCollisions(
     Ray const &r,
@@ -144,12 +137,13 @@ Vec3 traceShadowRay(Ray const &rayToLight,
 Vec3 castShadowRay(Ray const &normal_ray,
                    Vec3 const &color_surface,
                    std::vector<Object *> const &all_objects,
-                   Sphere const &light)
+                   Sphere const &light,
+                   Options const &option)
 {
 
     Ray rayToLight = Ray(normal_ray.pos, light.pos - normal_ray.pos, normal_ray.color, normal_ray.depth);
 
-    std::vector<Ray> shadowRays = sampleLightPoints(rayToLight, light, 6);
+    std::vector<Ray> shadowRays = sampleLightPoints(rayToLight, light, option.n_ray_shadow);
     Vec3 res_color = Vec3(0);
     for (auto r = shadowRays.begin(); r != shadowRays.end(); r++)
     {
@@ -169,7 +163,8 @@ Vec3 trace(Ray const &r,
     if (r.depth >= option.MAX_DEPTH)
     {
         // return shootToLight(r, light, all_objects, n_objects);
-        return r.color;
+        // return r.color;
+        return sky;
     };
 
     double t_hit = INFINITY;
@@ -178,6 +173,7 @@ Vec3 trace(Ray const &r,
     if (!checkCollisions(r, all_objects, t_hit, hit_object))
     {
         return sky * r.color; // sky-background color;
+        // return sky // sky-background color;
     }
 
     Vec3 hitPoint = r.pos + t_hit * r.dir;
@@ -202,7 +198,14 @@ Vec3 trace(Ray const &r,
     }
     else
     {
-        return castShadowRay(normal_ray, color_surface * r.color, all_objects, light);
+
+        // rougness * shadowColor + (1-rougness) * reflected_color
+        Ray reflected_ray = computeReflectedRay(normal_ray, r);
+        Vec3 color_reflected = trace(reflected_ray, all_objects, light, option);
+        Vec3 color_shadow = castShadowRay(normal_ray, color_surface * r.color, all_objects, light, option);
+
+        return hit_object->roughness * color_shadow + (1 - hit_object->roughness) * color_reflected;
+        // return castShadowRay(normal_ray, color_surface * r.color, all_objects, light);
     }
 }
 
@@ -275,8 +278,9 @@ int main()
     option.WIDTH = 2048;
     option.PIXEL_SIZE = 0.001;
     option.MAX_DEPTH = 4;
-    option.random_alliasing = true;
+    option.random_alliasing = false;
     option.n_ray_per_pixel = 4;
+    option.n_ray_shadow = 1;
 
     std::vector<std::vector<Vec3>> image(option.HEIGHT, std::vector<Vec3>(option.WIDTH));
 
@@ -288,24 +292,27 @@ int main()
     Sphere light = Sphere(Vec3(-2, -4, 3), WHITE, 0.1);
 
     std::vector<Object *> all_objects;
-    all_objects.push_back(new CheckBoard());
-    all_objects.push_back(new Sphere(
-        Vec3(2, 0, 1), BLUE, 1));
-    Sphere *glassSphere = new Sphere(Vec3(1, 1, 0.5), GREEN, 0.5);
-    glassSphere->isGlass = false;
-    glassSphere->opacity = 0.3;
-    all_objects.push_back(glassSphere);
-    Sphere *glassSphere2 = new Sphere(Vec3(1, -1, 0.5), RED, 0.5);
-    glassSphere2->isGlass = false;
-    glassSphere2->opacity = 0.6;
-    all_objects.push_back(glassSphere2);
+    Object *ground = new CheckBoard();
+    Object *sphere1 = new Sphere(Vec3(2, 0, 1), BLUE, 1);
+    Sphere *sphere2 = new Sphere(Vec3(1, 1, 0.5), GREEN, 0.5);
+    Sphere *sphere3 = new Sphere(Vec3(1, -1, 0.5), RED, 0.5);
+
+    ground->roughness = 0.8;
+
+    all_objects.push_back(ground);
+    all_objects.push_back(sphere1);
+    all_objects.push_back(sphere2);
+    all_objects.push_back(sphere3);
 
     // fill the pixel values
+    ProgressBar pbar = ProgressBar(70, option.WIDTH * option.HEIGHT);
+
     for (int i = 0; i < option.HEIGHT; i++)
     {
         for (int j = 0; j < option.WIDTH; j++)
         {
             std::vector<Ray *> rays;
+
             // anti-alliasing :
             if (option.random_alliasing)
             {
@@ -315,6 +322,7 @@ int main()
             {
                 rays = camera.shoot_random_rays(i, j, option.n_ray_per_pixel);
             }
+
             int alliasing_factor = rays.size();
             Vec3 color_pixel = Vec3(0);
             for (int k = 0; k < alliasing_factor; k++)
@@ -325,6 +333,8 @@ int main()
             }
             image[i][j] = color_pixel / alliasing_factor;
             rays.clear();
+
+            pbar.update();
         }
     }
 

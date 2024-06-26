@@ -224,7 +224,7 @@ Vec3 CheckBoard::getColorAt(Vec3 const &pos) const
     tile_x = positive_modulo(tile_x, 2);
     tile_y = positive_modulo(tile_y, 2);
 
-    Vec3 return_color = (tile_x == tile_y) ? Vec3(0) : Vec3(1);
+    Vec3 return_color = (tile_x == tile_y) ? DARK : WHITE;
 
     return return_color;
 }
@@ -337,6 +337,13 @@ int printf(Cube o)
 }
 // =======================================================================
 // MISC
+Ray computeReflectedRay(Ray const &normalRay, Ray const &incommingRay)
+{
+    double dot = normalRay.dir.dot(incommingRay.dir);
+    Vec3 dirReflec = incommingRay.dir - 2 * dot * normalRay.dir;
+    Ray res = Ray(normalRay.pos, dirReflec, normalRay.color, incommingRay.depth + 1);
+    return res;
+}
 
 Ray computeReflectedRay(Ray const &normalRay, Ray const &incommingRay, double const opacity)
 {
