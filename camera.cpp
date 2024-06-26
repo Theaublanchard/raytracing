@@ -89,6 +89,26 @@ std::vector<Ray *> Camera::shoot_rays(int i, int j) const
     return res;
 }
 
+double rand_uni()
+{
+    return ((double)rand() / (RAND_MAX));
+}
+
+std::vector<Ray *> Camera::shoot_random_rays(int i, int j, int n_rays) const
+{
+    std::vector<Ray *> res;
+    Vec3 r_pos, r_dir;
+    for (int k = 0; k < n_rays; k++)
+    {
+        double offset_x = rand_uni();
+        double offset_y = rand_uni();
+        r_pos = top_left_corner + (j + offset_x) * pixel_size * right_dir + (i + offset_y) * pixel_size * down_dir;
+        r_dir = r_pos - focal_point;
+        res.push_back(new Ray(r_pos, r_dir, Vec3(1)));
+    }
+    return res;
+}
+
 std::ostream &operator<<(std::ostream &os, const Camera o)
 {
     os << "Camera at position " << o.pos_center << " with focal at " << o.focal_point << " with a pixel size of " << o.pixel_size << ", width of "

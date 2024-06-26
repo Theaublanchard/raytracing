@@ -275,6 +275,8 @@ int main()
     option.WIDTH = 2048;
     option.PIXEL_SIZE = 0.001;
     option.MAX_DEPTH = 4;
+    option.random_alliasing = true;
+    option.n_ray_per_pixel = 4;
 
     std::vector<std::vector<Vec3>> image(option.HEIGHT, std::vector<Vec3>(option.WIDTH));
 
@@ -303,8 +305,16 @@ int main()
     {
         for (int j = 0; j < option.WIDTH; j++)
         {
+            std::vector<Ray *> rays;
             // anti-alliasing :
-            std::vector<Ray *> rays = camera.shoot_rays(i, j);
+            if (option.random_alliasing)
+            {
+                rays = camera.shoot_rays(i, j);
+            }
+            else
+            {
+                rays = camera.shoot_random_rays(i, j, option.n_ray_per_pixel);
+            }
             int alliasing_factor = rays.size();
             Vec3 color_pixel = Vec3(0);
             for (int k = 0; k < alliasing_factor; k++)

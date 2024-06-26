@@ -20,6 +20,8 @@ struct Options
     int WIDTH;
     int HEIGHT;
     double PIXEL_SIZE;
+    bool random_alliasing;
+    int n_ray_per_pixel;
 };
 
 bool checkCollisions(Ray const &r,

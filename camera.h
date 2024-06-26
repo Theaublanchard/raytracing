@@ -23,6 +23,7 @@ public:
     // {pos_center(pos), focal_point(focal), pixel_size(px_size)};
 
     Ray shoot_ray(int i, int j) const;
+    std::vector<Ray *> shoot_random_rays(int i, int j, int n_rays) const;
     std::vector<Ray *> shoot_rays(int i, int j) const;
     void compute_corners();
 };
