@@ -63,6 +63,7 @@ std::vector<Ray> sampleLightPoints(Ray const &rayToLight, Sphere const &light, i
     Vec3 v1 = cross_product(rayToLight.dir, Vec3(0, 0, 1));
     v1 = v1.normalize();
     Vec3 v2 = cross_product(rayToLight.dir, v1);
+    v2 = v2.normalize();
 
     std::vector<Ray> shadowRays;
     Vec3 dir;
