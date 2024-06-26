@@ -51,28 +51,44 @@ bool checkCollisions(
     return hit;
 }
 
-std::vector<Ray> sampleLightPoints(Ray const &rayToLight, Sphere const &light)
+double rand01()
+{
+    return ((double)rand() / (RAND_MAX));
+}
+
+std::vector<Ray> sampleLightPoints(Ray const &rayToLight, Sphere const &light, int n_pts)
 {
     // find an orthnormal basis of the disk
+    // If rayToLight.dir ==  Vec3(0, 0, 1) big problem, too lazy to fix
     Vec3 v1 = cross_product(rayToLight.dir, Vec3(0, 0, 1));
     v1 = v1.normalize();
     Vec3 v2 = cross_product(rayToLight.dir, v1);
 
-    // Could be random sampling but naaahh
-    // Could be the n_roots of unit circle but naaahh
-    // Lets just take four corners and the true center
     std::vector<Ray> shadowRays;
+    Vec3 dir;
+
+    std::srand(std::time(nullptr)); // use current time as seed for random generator
+    for (int i = 0; i < n_pts; i++)
+    {
+        double angle = rand01() * 2 * M_PI;
+        double dst = rand01() * light.s;
+        double x = cos(angle);
+        double y = sin(angle);
+        Vec3 ptsOnDisk = dst * (x * v1 + y * v2);
+        dir = light.pos + ptsOnDisk - rayToLight.pos;
+        shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    }
     shadowRays.push_back(rayToLight);
 
-    Vec3 dir;
-    dir = light.pos + light.s * v1 - rayToLight.pos;
-    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
-    dir = light.pos - light.s * v1 - rayToLight.pos;
-    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
-    dir = light.pos + light.s * v2 - rayToLight.pos;
-    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
-    dir = light.pos - light.s * v2 - rayToLight.pos;
-    shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    // Vec3 dir;
+    // dir = light.pos + light.s * v1 - rayToLight.pos;
+    // shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    // dir = light.pos - light.s * v1 - rayToLight.pos;
+    // shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    // dir = light.pos + light.s * v2 - rayToLight.pos;
+    // shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
+    // dir = light.pos - light.s * v2 - rayToLight.pos;
+    // shadowRays.push_back(Ray(rayToLight.pos, dir, rayToLight.color, rayToLight.depth));
 
     return shadowRays;
 }
@@ -126,75 +142,18 @@ Vec3 traceShadowRay(Ray const &rayToLight,
 
 Vec3 castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
 {
-    // std::cout << "\nChecking for light visibility\n";
 
     Ray rayToLight = Ray(normal_ray.pos, light.pos - normal_ray.pos, normal_ray.color, normal_ray.depth);
 
-    std::vector<Ray> shadowRays = sampleLightPoints(rayToLight, light);
+    std::vector<Ray> shadowRays = sampleLightPoints(rayToLight, light, 6);
     Vec3 res_color = Vec3(0);
     for (auto r = shadowRays.begin(); r != shadowRays.end(); r++)
     {
         res_color = res_color + traceShadowRay(*r, normal_ray, color_surface, all_objects, light);
     }
+    // Could be better than averaging, like using cosine of angle as weight ?
     res_color = res_color / shadowRays.size();
     return res_color;
-}
-
-// double castShadowRay(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
-Vec3 castShadowRay__(Ray const &normal_ray, Vec3 const &color_surface, std::vector<Object *> all_objects, Sphere const &light)
-{
-    // std::cout << "\nChecking for light visibility\n";
-
-    Ray rayToLight = Ray(normal_ray.pos, light.pos - normal_ray.pos, normal_ray.color, normal_ray.depth);
-
-    /*
-    TODO:
-    to have better shadow, shoot multiple rays ~towards the light.
-    An option would be to sample points on the disk centered at the position
-    of the light and orthogonal to rayToLight.dir.
-    Then average the values.
-    Could also be possible to have a weighted average of the point
-    according to the cosine of the angle with the true ray direction.
-    */
-
-    double t_hit = INFINITY;
-    Object *hit_obj = nullptr;
-    bool blocked = checkCollisions(rayToLight, all_objects, t_hit, hit_obj);
-
-    if (blocked)
-    {
-        if (hit_obj->isGlass)
-        {
-            float facing_ratio = rayToLight.dir.normalize().dot(normal_ray.dir);
-            return facing_ratio * light.color * color_surface * (1 - hit_obj->opacity);
-
-            // shoot another reflected ray i guess;
-            // Vec3 hitPoint = rayToLight.pos + t_hit * rayToLight.dir;
-            // Vec3 normal_dir = hit_obj->computeNormalDir(hitPoint);
-            // hitPoint = hitPoint + 1e-5 * normal_dir; // To avoid self_intersection
-            // Vec3 color_glass = hit_obj->getColorAt(hitPoint);
-            // Vec3 color_surface = color_glass * rayToLight.color;
-            // Ray normal_ray = Ray(hitPoint, normal_dir, color_surface, rayToLight.depth);
-
-            // Ray reflected_ray = computeReflectedRay(normal_ray, rayToLight, hit_obj->opacity);
-            // Vec3 color_reflected = trace(reflected_ray, all_objects, light);
-            // return color_reflected;
-        }
-        else
-        {
-            // something in the way, return black.
-            // std::cout << "The light is not visible.\n";
-            return Vec3(0);
-        }
-    }
-    else
-    {
-        // the light is visible
-        float facing_ratio = rayToLight.dir.normalize().dot(normal_ray.dir);
-        // std::cout << "The light is visible.\n";
-        // return facing_ratio;
-        return facing_ratio * light.color * color_surface;
-    }
 }
 
 Vec3 trace(Ray r, std::vector<Object *> all_objects, Sphere light)

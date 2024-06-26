@@ -11,6 +11,7 @@
 #endif
 
 #include <vector>
+#include <ctime>
 #include <fstream> // For std::ofstream
 
 bool checkCollisions(Ray r,
